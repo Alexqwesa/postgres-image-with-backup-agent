@@ -1,9 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
-void jsonResponse(HttpRequest req, int status, Map<String, Object?> obj) {
-  req.response.statusCode = status;
-  req.response.headers.contentType = ContentType.json;
-  req.response.write(jsonEncode(obj));
-  req.response.close();
+Future<void> jsonResponse(HttpRequest req, int status, Map<String, dynamic> body) async {
+  final bytes = utf8.encode(jsonEncode(body));
+
+  final res = req.response;
+  res.statusCode = status;
+  res.headers.contentType = ContentType('application', 'json', charset: 'utf-8');
+  res.headers.set(HttpHeaders.contentLengthHeader, bytes.length);
+
+  res.add(bytes);
+  await res.close();
 }

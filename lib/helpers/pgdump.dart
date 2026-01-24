@@ -9,6 +9,13 @@ class ProcResult {
   final bool timedOut;
 
   ProcResult(this.exitCode, this.stdout, this.stderr, {this.timedOut = false});
+
+  ProcResult.named({
+    required this.exitCode,
+    required this.stdout,
+    required this.stderr,
+    this.timedOut = false,
+  });
 }
 
 Future<ProcResult> runPgDump({
