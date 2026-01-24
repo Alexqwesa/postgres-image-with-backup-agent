@@ -1,0 +1,6 @@
+# Default: let git normalize text, but keep repo content in LF
+* text=auto
+
+# Shell scripts must always be LF
+*.sh text eol=lf
+*.bat text eol=crlf

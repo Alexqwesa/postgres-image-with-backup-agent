@@ -1,0 +1,33 @@
+# Node, OS, VCS
+node_modules/
+.git/
+.gitignore
+.DS_Store
+.idea/
+.vscode/
+*.iml
+*.log
+
+# Dart / Flutter generated
+**/build/
+**/.dart_tool/
+**/.packages
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.metadata
+**/.fleet/
+**/.gradle/
+**/.pub-cache/        # don't copy your local cache; let image handle it
+
+# iOS / macOS
+**/Pods/
+**/DerivedData/
+
+# Android
+**/.cxx/
+**/.settings/
+**/local.properties
+
+# Web artifacts
+**/web/.dart_tool/
+**/web/build/

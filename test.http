@@ -1,0 +1,124 @@
+### Variables
+@scheme = http
+@host = 127.0.0.1
+@port = 1804
+@base = {{scheme}}://{{host}}:{{port}}
+@token = REPLACE_WITH_YOUR_SECRET
+# token currently unused
+@timeout = 900
+
+### Health check
+GET {{base}}/health
+Accept: application/json
+
+> {%
+client.test("health is OK", function() {
+  client.assert(response.status === 200, "Expected 200");
+  const body = (typeof response.body === 'string') ? JSON.parse(response.body) : response.body;
+  client.assert(body.ok === true, "ok should be true");
+});
+%}
+
+###
+
+# -------- Daily backup --------
+POST {{base}}/backup?reason=daily
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{}
+
+> {%
+client.test("daily backup accepted", function() {
+  client.assert(response.status === 200, "Expected 200");
+  const b = (typeof response.body === 'string') ? JSON.parse(response.body) : response.body;
+  client.assert(b.ok === true, "ok should be true");
+  client.assert(b.file && b.file.endsWith("_daily.dump"), "file should end with _daily.dump");
+});
+%}
+
+###
+
+# -------- Weekly backup --------
+POST {{base}}/backup?reason=weekly
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{}
+
+> {%
+client.test("weekly backup accepted", function() {
+  client.assert(response.status === 200, "Expected 200");
+  const b = (typeof response.body === 'string') ? JSON.parse(response.body) : response.body;
+  client.assert(b.ok === true, "ok should be true");
+  client.assert(b.file && b.file.endsWith("_weekly.dump"), "file should end with _weekly.dump");
+});
+%}
+
+###
+
+# -------- Monthly backup --------
+POST {{base}}/backup?reason=monthly
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{}
+
+> {%
+client.test("monthly backup accepted", function() {
+  client.assert(response.status === 200, "Expected 200");
+  const b = (typeof response.body === 'string') ? JSON.parse(response.body) : response.body;
+  client.assert(b.ok === true, "ok should be true");
+  client.assert(b.file && b.file.endsWith("_monthly.dump"), "file should end with _monthly.dump");
+});
+%}
+
+###
+
+## -------- Unauthorized (expect 401) --------
+#POST {{base}}/backup?reason=adhoc
+#Content-Type: application/json
+#Accept: application/json
+#
+#{}
+#
+#> {%
+#client.test("unauthorized without token", function() {
+#  client.assert(response.status === 401, "Expected 401 Unauthorized");
+#});
+#%}
+#
+####
+#
+## -------- Conflict test (run twice quickly; second may be 409) --------
+## First call
+#POST {{base}}/backup?reason=adhoc
+#Authorization: Bearer {{token}}
+#Content-Type: application/json
+#Accept: application/json
+#
+#{}
+#
+#> {%
+#client.test("first adhoc runs", function() {
+#  client.assert(response.status >= 200 && response.status < 300, "Expected 2xx");
+#});
+#%}
+#
+####
+## Immediate second call (likely 409 if lock is held)
+#POST {{base}}/backup?reason=adhoc
+#Authorization: Bearer {{token}}
+#Content-Type: application/json
+#Accept: application/json
+#
+#{}
+#
+#> {%
+#client.test("second adhoc may be locked", function() {
+#  client.assert([200, 409].includes(response.status), "Expected 200 or 409");
+#});
+#%}

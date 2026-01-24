@@ -1,0 +1,16 @@
+name: postgres_image_with_backup_agent
+description: A small Dart daemon bundled into a PostgreSQL Docker image to run
+  pg_dump-based backups on demand - simple api to call from your backend only.
+version: 1.0.0
+repository: https://github.com/Alexqwesa/postgres-image-with-backup-agent
+
+environment:
+  sdk: ^3.8.1
+
+# Add regular dependencies here.
+dependencies:
+  # path: ^1.8.0
+
+dev_dependencies:
+  lints: ^5.0.0
+  test: ^1.24.0
