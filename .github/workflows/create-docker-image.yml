@@ -79,11 +79,13 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/pgdump-agent
+          images: ghcr.io/${{ github.repository_owner }}/postgres-image-with-backup-agent
           tags: |
             type=ref,event=branch
             type=ref,event=tag
             type=sha
+            type=raw,value=latest
+            type=raw,value=16.3
 
       - name: Build and push
         if: steps.decide.outputs.skip != 'true'
