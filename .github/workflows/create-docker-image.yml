@@ -5,7 +5,7 @@ on:
     branches: [ "main" ]
     tags: [ "v*" ]
   schedule:
-    - cron: "0 3 * * 1"   # every Monday 03:00 UTC
+  - cron: "0 3 3,18 * *"   # 03:00 UTC on day 3 and 18
   workflow_dispatch:
 
 permissions:
@@ -30,17 +30,63 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
 
+      - name: Resolve Postgres base image digest
+        id: base
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Pick the Postgres base image from Dockerfile (Stage 2)
+          BASE_IMAGE="$(grep -E '^FROM postgres:' Dockerfile | head -n 1 | awk '{print $2}')"
+          echo "base_image=$BASE_IMAGE" >> "$GITHUB_OUTPUT"
+
+          docker pull "$BASE_IMAGE" >/dev/null
+
+          # RepoDigests looks like: postgres@sha256:...
+          REPO_DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "$BASE_IMAGE")"
+          DIGEST="${REPO_DIGEST#*@}"
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+          # cache payload (any file is fine)
+          echo "$BASE_IMAGE $DIGEST" > .base-image-digest
+
+      - name: Cache marker for base digest
+        id: base_cache
+        uses: actions/cache@v4
+        with:
+          path: .base-image-digest
+          key: base-digest-${{ steps.base.outputs.digest }}
+          restore-keys: |
+            base-digest-
+
+      - name: Decide whether to skip scheduled build
+        id: decide
+        shell: bash
+        run: |
+          set -euo pipefail
+          SKIP=false
+          if [[ "${{ github.event_name }}" == "schedule" && "${{ steps.base_cache.outputs.cache-hit }}" == "true" ]]; then
+            SKIP=true
+          fi
+          echo "skip=$SKIP" >> "$GITHUB_OUTPUT"
+          echo "Base: ${{ steps.base.outputs.base_image }}"
+          echo "Digest: ${{ steps.base.outputs.digest }}"
+          echo "Skip: $SKIP"
+
+
       - name: Docker meta (tags, labels)
+        if: steps.decide.outputs.skip != 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/postgres-image-with-backup-agent
+          images: ghcr.io/${{ github.repository_owner }}/pgdump-agent
           tags: |
             type=ref,event=branch
             type=ref,event=tag
             type=sha
 
       - name: Build and push
+        if: steps.decide.outputs.skip != 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
