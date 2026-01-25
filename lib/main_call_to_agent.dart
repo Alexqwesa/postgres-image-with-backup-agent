@@ -1,10 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-String _env(String key, [String def = '']) =>
-    (Platform.environment[key]?.trim().isNotEmpty ?? false)
-        ? Platform.environment[key]!.trim()
-        : def;
+import 'helpers/env.dart';
 
 Future<void> main(List<String> args) async {
   // Policy: daily | weekly | monthly | adhoc
@@ -19,22 +16,18 @@ Future<void> main(List<String> args) async {
   }
 
   // Agent URL (e.g. http://127.0.0.1:1804)
-  final baseUrl = _env('BACKUP_AGENT_URL', 'http://127.0.0.1:1804');
-  final uri = Uri.parse(baseUrl).replace(
-    path: '/backup',
-    queryParameters: {'reason': policy},
-  );
+  final baseUrl = envStr('BACKUP_AGENT_URL', 'http://127.0.0.1:1804');
+  final uri = Uri.parse(baseUrl).replace(path: '/backup', queryParameters: {'reason': policy});
 
   // Optional bearer token for agent
-  final token = _env('BACKUP_AGENT_TOKEN', '');
+  final token = envStr('BACKUP_AGENT_TOKEN', '');
 
   // Optional DB connection overrides (forwarded as headers)
-  final pgHost = _env('POSTGRES_HOST', 'host.docker.internal');
-  final pgPort = _env('POSTGRES_PORT', '5432');
-  final pgDb = _env('POSTGRES_DB', 'postgres');
-  final pgUser = _env('POSTGRES_USER', 'postgres');
-  final pgPwd =
-      _env('POSTGRES_PASSWORD', _env('PGPASSWORD', 'postgres'));
+  final pgHost = envStr('POSTGRES_HOST', 'host.docker.internal');
+  final pgPort = envStr('POSTGRES_PORT', '5432');
+  final pgDb = envStr('POSTGRES_DB', 'postgres');
+  final pgUser = envStr('POSTGRES_USER', 'postgres');
+  final pgPwd = envStr('POSTGRES_PASSWORD', envStr('PGPASSWORD', 'postgres'));
 
   stdout.writeln('Calling backup agent: $uri');
 
@@ -44,10 +37,7 @@ Future<void> main(List<String> args) async {
 
     // Auth header
     if (token.isNotEmpty) {
-      req.headers.set(
-        HttpHeaders.authorizationHeader,
-        'Bearer $token',
-      );
+      req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
     }
 
     // Forward DB headers if set
@@ -68,8 +58,7 @@ Future<void> main(List<String> args) async {
     }
 
     // Body is empty; server uses only query + headers
-    req.headers.contentType =
-        ContentType('application', 'json', charset: 'utf-8');
+    req.headers.contentType = ContentType('application', 'json', charset: 'utf-8');
     req.write('{}');
 
     final resp = await req.close();

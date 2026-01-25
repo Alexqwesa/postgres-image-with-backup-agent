@@ -36,3 +36,4 @@ RUN chmod +x \
 
 # Default: Postgres + agent
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint-with-agent.sh"]
+CMD ["postgres"]
