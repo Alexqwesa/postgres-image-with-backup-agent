@@ -62,6 +62,11 @@ Future<HttpServer> serve({
       if (expected.isNotEmpty) {
         final token = auth.startsWith('Bearer ') ? auth.substring(7).trim() : '';
         if (token != expected) {
+          stdout.writeln(
+            'AUTH FAIL from ${req.connectionInfo?.remoteAddress}:${req.connectionInfo?.remotePort} '
+            'path=${req.uri.path} '
+            'gotBearerLen=${token.isEmpty ? 0 : token.length} expectedLen=${expected.length}',
+          );
           await jsonResponse(req, 401, {'ok': false, 'error': 'unauthorized'});
           continue;
         }
@@ -148,6 +153,11 @@ Future<HttpServer> serve({
             '${safeFilePart(host, fallback: 'host')}_'
             '${safeFilePart(portStr, fallback: 'p')}_'
             '${safeFilePart(policy, fallback: 'adhoc')}.dump';
+
+        stdout.writeln(
+          'pg_dump start: host=$host port=$portStr db=$dbname user=$user '
+          'policy=$policy outfile=$outfile timeoutSec=$pgDumpTimeoutSec',
+        );
 
         final result = await pgDump(
           host: host,
