@@ -2,7 +2,7 @@ name: docker
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master" ]
     tags: [ "v*" ]
   schedule:
   - cron: "0 3 3,18 * *"   # 03:00 UTC on day 3 and 18
