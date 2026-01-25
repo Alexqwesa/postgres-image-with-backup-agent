@@ -5,6 +5,9 @@ import 'dart:math';
 
 import 'package:test/test.dart';
 
+import 'helpers/helpers_for_integration.dart';
+import 'helpers/wait_until.dart';
+
 var BACKUP_AGENT_PORT = 1804;
 
 void main() {
@@ -24,7 +27,7 @@ void main() {
       final imageTag = 'pgdump-agent-test-img:$rnd';
 
       final backupsDir = Directory.systemTemp.createTempSync('pgdump-backups-$rnd-');
-      final hostPort = await _pickFreePort();
+      final hostPort = await pickFreePort();
 
       try {
         // 1) Create isolated docker network
@@ -47,7 +50,7 @@ void main() {
         ]);
 
         // 3) Wait until Postgres is ready
-        await _waitPgReady(container: dbName, timeout: const Duration(seconds: 160));
+        await waitPgReady(container: dbName, timeout: const Duration(seconds: 160));
 
         // 4) Build YOUR image under test (repo root as context)
         await _docker(['build', '-t', imageTag, '.']);
@@ -89,16 +92,13 @@ void main() {
         ]);
 
         // 6) Call the agent endpoint
-        _HttpRes? res;
+        HttpRes? res;
         try {
           final uri = Uri.parse('http://127.0.0.1:$hostPort/backup?reason=adhoc');
-          await _waitHttpHealthy(uri);
-          res = await _httpPostJson(
-            uri,
-            headers: {HttpHeaders.authorizationHeader: 'Bearer tok'},
-          );
+          await waitHttpHealthy(uri);
+          res = await httpPostJson(uri, headers: {HttpHeaders.authorizationHeader: 'Bearer tok'});
         } catch (e) {
-          final logs = await _dockerOut(['logs', agentName, '--tail', '200']);
+          final logs = await dockerOut(['logs', agentName, '--tail', '200']);
           throw StateError('HTTP failed: $e\n--- agent logs ---\n$logs');
         }
         expect(res.statusCode, 200, reason: res.body);
@@ -106,7 +106,7 @@ void main() {
         expect(json['ok'], true, reason: res.body);
 
         // 7) Verify a dump file appears on the HOST (mounted volume)
-        final dumpFile = await _waitForDumpFile(backupsDir, timeout: const Duration(seconds: 30));
+        final dumpFile = await waitForDumpFile(backupsDir, timeout: const Duration(seconds: 30));
         expect(dumpFile.existsSync(), isTrue);
 
         // 8) (Optional but “real”): verify dump is readable with pg_restore -l
@@ -158,89 +158,4 @@ Future<void> _dockerNoThrow(List<String> args) async {
   try {
     await Process.run('docker', args, runInShell: true);
   } catch (_) {}
-}
-
-Future<void> _waitPgReady({required String container, required Duration timeout}) async {
-  final deadline = DateTime.now().add(timeout);
-  while (DateTime.now().isBefore(deadline)) {
-    final r = await Process.run('docker', [
-      'exec',
-      container,
-      'pg_isready',
-      '-U',
-      'postgres',
-      '-d',
-      'postgres',
-    ], runInShell: true);
-    if (r.exitCode == 0) return;
-    await Future<void>.delayed(const Duration(seconds: 1));
-  }
-  throw TimeoutException('Postgres not ready in $timeout', timeout);
-}
-
-Future<int> _pickFreePort() async {
-  final s = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-  final p = s.port;
-  await s.close();
-  return p;
-}
-
-class _HttpRes {
-  final int statusCode;
-  final String body;
-
-  _HttpRes(this.statusCode, this.body);
-}
-
-Future<_HttpRes> _httpPostJson(Uri uri, {Map<String, String>? headers}) async {
-  final client = HttpClient();
-  try {
-    final req = await client.postUrl(uri);
-    headers?.forEach(req.headers.set);
-    req.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
-    req.add(utf8.encode('{}'));
-    final res = await req.close();
-    final body = await res.transform(utf8.decoder).join();
-    return _HttpRes(res.statusCode, body);
-  } finally {
-    client.close(force: true);
-  }
-}
-
-Future<File> _waitForDumpFile(Directory dir, {required Duration timeout}) async {
-  final deadline = DateTime.now().add(timeout);
-  while (DateTime.now().isBefore(deadline)) {
-    final files = dir.listSync().whereType<File>().where((f) => f.path.endsWith('.dump')).toList()
-      ..sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
-    if (files.isNotEmpty) return files.first;
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-  }
-  throw TimeoutException('No .dump file created in $timeout', timeout);
-}
-
-Future<void> _waitHttpHealthy(Uri base, {Duration timeout = const Duration(seconds: 300)}) async {
-  final deadline = DateTime.now().add(timeout);
-  final client = HttpClient();
-
-  try {
-    while (DateTime.now().isBefore(deadline)) {
-      try {
-        final req = await client.getUrl(base.replace(path: '/health'));
-        final res = await req.close();
-        await res.drain();
-        if (res.statusCode == 200) return;
-      } catch (_) {
-        // ignore and retry
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 300));
-    }
-    throw TimeoutException('Agent not healthy in $timeout', timeout);
-  } finally {
-    client.close(force: true);
-  }
-}
-
-Future<String> _dockerOut(List<String> args) async {
-  final r = await Process.run('docker', args, runInShell: true);
-  return (r.stdout?.toString() ?? '') + (r.stderr?.toString() ?? '');
 }
