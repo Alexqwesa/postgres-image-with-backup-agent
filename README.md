@@ -21,6 +21,18 @@ called **only from your backend** (never exposed publicly).
 
 ---
 
+## Works great with `serverpod_housekeeping`
+
+If you run a Serverpod backend, you can schedule backups (daily/weekly/monthly) and optionally
+trim Serverpod internal log tables using **serverpod_housekeeping**.
+
+- `serverpod_housekeeping` triggers this image via `POST /backup?...`
+- Jobs are scheduled in **UTC** using Serverpod FutureCalls
+- You can run cleanup logs before backup
+
+See: `serverpod_housekeeping` → https://github.com/Alexqwesa/serverpod_housekeeping
+
+---
 
 ## HOWTO use
 
@@ -48,13 +60,15 @@ services:
     image: ghcr.io/alexqwesa/postgres-image-with-backup-agent:16.3
 
     env_file:
-      - secret/.env.example
+      - .env.example
       - secret/.env  # your real secrets
 
     environment:
       BACKUP_AGENT_PORT: 1804
       BACKUP_TO_DIR: /backups
-
+      BACKUP_KEEP_DAILY: 30
+      BACKUP_KEEP_WEEKLY: 12
+      BACKUP_KEEP_MONTHLY: 12
     volumes:
       - ./backups:/backups
 ```
@@ -63,6 +77,6 @@ services:
 ```bash
 git clone https://github.com/Alexqwesa/postgres-image-with-backup-agent.git
 cd postgres-image-with-backup-agent
-# edit postgresql version in Dockerfile (FROM postgres:<version>)
-docker build -t my-postgres-with-backup-agent . # or any tag name to use in snippet above
+# edit postgresql version in Dockerfile (FROM postgres:<version>) or pgvector - for latest serverpod
+docker build -t my-postgres-with-backup-agent . # or any image name 
 ```
