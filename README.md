@@ -36,9 +36,14 @@ See: `serverpod_housekeeping` → https://github.com/Alexqwesa/serverpod_houseke
 
 ## HOWTO use
 
-This repo publishes an example image for **Postgres 16.3**.
-If you need a different Postgres version, **build your own image** from this
-repo by changing the `FROM postgres:<version>` line in `Dockerfile`.
+This repo publishes prebuilt images for:
+
+- `ghcr.io/alexqwesa/postgres-image-with-backup-agent:16.3`
+- `ghcr.io/alexqwesa/postgres-image-with-backup-agent:pgvector-pg16`
+
+If you need a different Postgres base image or version, **build your own image**
+from this repo by changing the base image in `Dockerfile` or by overriding the
+`BASE_IMAGE` build arg.
 
 ### .env.example (required)
 
@@ -50,7 +55,9 @@ Copy `.env.example` and set at least:
 
 Put your real env file in `secret/.env` and keep it out of git!
 
-### Option A — Use the prebuilt 16.3 image
+### Option A — Use a prebuilt image
+
+For plain Postgres 16.3:
 
 1) In your `docker-compose.yml`, replace your Postgres image with:
 
@@ -73,10 +80,20 @@ services:
       - ./backups:/backups
 ```
 
+For `pgvector/pgvector:pg16`, use:
+
+```yaml
+services:
+  postgres:
+    image: ghcr.io/alexqwesa/postgres-image-with-backup-agent:pgvector-pg16
+```
+
 ### Option B — Build your own image for Postgres
 ```bash
 git clone https://github.com/Alexqwesa/postgres-image-with-backup-agent.git
 cd postgres-image-with-backup-agent
-# edit postgresql version in Dockerfile (FROM postgres:<version>) or pgvector - for latest serverpod
-docker build -t my-postgres-with-backup-agent . # or any image name 
+# override the upstream image if you want a different postgres or pgvector base
+docker build --build-arg BASE_IMAGE=postgres:17 -t my-postgres-with-backup-agent .
+# or:
+docker build --build-arg BASE_IMAGE=pgvector/pgvector:pg16 -t my-pgvector-with-backup-agent .
 ```

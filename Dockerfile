@@ -13,7 +13,8 @@ RUN mkdir -p /out
 RUN dart compile exe bin/backup_agent.dart -o /out/pgdump-agent
 
 # ---- Stage 2: Postgres with tiny Dart agent
-FROM postgres:16.3
+ARG BASE_IMAGE=postgres:16.3
+FROM ${BASE_IMAGE}
 COPY --from=build /out/pgdump-agent /usr/local/bin/pgdump-agent
 
 # Entrypoints
