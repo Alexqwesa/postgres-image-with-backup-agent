@@ -1,3 +1,4 @@
+ARG BASE_IMAGE=postgres:16.3
 # ---- Stage 1: build native Dart binary
 FROM dart:stable AS build
 WORKDIR /src/backup_agent
@@ -13,7 +14,7 @@ RUN mkdir -p /out
 RUN dart compile exe bin/backup_agent.dart -o /out/pgdump-agent
 
 # ---- Stage 2: Postgres with tiny Dart agent
-ARG BASE_IMAGE=postgres:16.3
+
 FROM ${BASE_IMAGE}
 COPY --from=build /out/pgdump-agent /usr/local/bin/pgdump-agent
 
